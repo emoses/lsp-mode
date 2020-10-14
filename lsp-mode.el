@@ -157,6 +157,11 @@ modifiers into account."
   :group 'lsp-mode
   :type 'boolean)
 
+(defcustom lsp-nested-project-separator "."
+  "Use this separator to break nested project names.  If nil, don't support nested projects"
+  :group 'lsp-mode
+  :type 'string)
+
 (defface lsp-face-semhl-constant
   '((t :inherit font-lock-constant-face))
   "Face used for semantic highlighting scopes matching constant scopes."
@@ -5873,12 +5878,18 @@ textDocument/didOpen for the new file."
       (unless (string-prefix-p "$" method)
         (lsp-warn "Unknown notification: %s" method)))))
 
+(defun lsp--separate-path-parts (path)
+  "Split PATH into parts using separator  lsp-nested-project-separator"
+  (if lsp-nested-project-separator
+      (split-string path (regexp-quote lsp-nested-project-separator))
+    (list path)))
+
 (lsp-defun lsp--build-workspace-configuration-response ((&ConfigurationParams :items))
   "Get section configuration.
 PARAMS are the `workspace/configuration' request params"
   (->> items
        (-map (-lambda ((&ConfigurationItem :section?))
-               (-let* ((path-parts (split-string section? "\\."))
+               (-let* ((path-parts (lsp--separate-path-parts section?))
                        (path-without-last (s-join "." (-slice path-parts 0 -1)))
                        (path-parts-len (length path-parts)))
                  (cond
